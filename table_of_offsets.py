@@ -143,23 +143,29 @@ heights['ap']['sheer'] = section.bounds[1][2]
 half_breadths['ap']['sheer'] = section.bounds[1][1]
 ap_dist['wl']['sheer'] = loa
 
-h = 0
+fp_dist['wl']['keel'] = loa/2
+h = epsilon
 while True:
     h += epsilon
     try:
-        fp_dist['wl']['keel'] = get_offset(mesh, None, 0, h, accept_angle=(45, 360-45))
-        break
+        dist = get_offset(mesh, None, 0, h, accept_angle=(45, 360-45))
+        if dist:
+            fp_dist['wl']['keel'] = dist
+            break
     except ValueError:
         pass
 heights['fp']['keel'] = h
 half_breadths['fp']['keel'] = get_offset(mesh, fp_dist['wl']['keel'], None, h) 
 
-h = 0
+ap_dist['wl']['keel'] = loa/2
+h = epsilon
 while True:
     h += epsilon
     try:
-        ap_dist['wl']['keel'] = get_offset(mesh, None, 0, h, accept_angle=(45, 360-45), ap=True)
-        break
+        dist = get_offset(mesh, None, 0, h, accept_angle=(45, 360-45), ap=True)
+        if dist:
+            ap_dist['wl']['keel'] = dist
+            break
     except ValueError:
         pass
 heights['ap']['keel'] = h
