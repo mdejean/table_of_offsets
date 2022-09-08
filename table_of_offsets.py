@@ -261,14 +261,37 @@ for wl in wls:
     half_breadths['ap'][wl] = get_offset(mesh, ap_dist['wl'][wl]-epsilon, None, wl)
 
 for butt in butts:
-    section = mesh.section([0, 1, 0], [0, butt, 0])
-    fp_dist['butt'][butt] = section.bounds[0][0]
-    ap_dist['butt'][butt] = section.bounds[1][0]
     
-    heights['fp'][butt] = get_offset(mesh, fp_dist['butt'][butt]+epsilon, butt, None)
-    heights['ap'][butt] = get_offset(mesh, ap_dist['butt'][butt]-epsilon, butt, None)
+    fp_dist['butt'][butt] = None
+    heights['fp'][butt] = None
 
-
+    # search from top to bottom for the highest point on the buttock which does not reflect back
+    for h in np.linspace(depth, 0, 1000):
+        fp_dist['butt'][butt], angle = get_offset_and_angle(mesh, None, butt, h)
+        heights['fp'][butt] = h
+        if fp_dist['butt'][butt] and (angle < 45 or angle > 360-45):
+            break
+    
+    ap_dist['butt'][butt] = None
+    heights['ap'][butt] = None
+    for h in np.linspace(depth, 0, 1000):
+        ap_dist['butt'][butt], angle = get_offset_and_angle(mesh, None, butt, h, ap=True)
+        heights['ap'][butt] = h
+        if ap_dist['butt'][butt] and (angle < 45 or angle > 360-45):
+            break
+    
+    
+    # transoms cause problems for using the sections as is since points would always be on them, but the above method can fail sometimes when the sides are steep
+    
+    section = mesh.section([0, 1, 0], [0, butt, 0])
+    if fp_dist['butt'][butt] is None:
+        fp_dist['butt'][butt] = section.bounds[0][0]
+        heights['fp'][butt] = get_offset(mesh, fp_dist['butt'][butt]+epsilon, butt, None)
+    
+    if ap_dist['butt'][butt] is None:
+        ap_dist['butt'][butt] = section.bounds[1][0]
+        heights['ap'][butt] = get_offset(mesh, ap_dist['butt'][butt]-epsilon, butt, None)
+    
 
 
 fmt = args.format
