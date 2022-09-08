@@ -23,7 +23,7 @@ parser.add_argument('--show-chines', action='store_true', help="Show chine-locat
 
 args = parser.parse_args()
 
-def get_offset(mesh, station, butt, wl, accept_angle=None, ap=False):
+def get_offset_and_angle(mesh, station, butt, wl, accept_angle=None, ap=False, other_axis=None):
     #a coordinate outside the mesh
     outside = mesh.scale
     
@@ -53,37 +53,53 @@ def get_offset(mesh, station, butt, wl, accept_angle=None, ap=False):
             normal = [0, 0, 1]
         else:
             normal = [0, -1, 0]
+    if other_axis is not None:
+        direction = other_axis
 
     locations, index_ray, index_tri = mesh.ray.intersects_location(ray_origins=[origin], ray_directions=[direction])
     if len(locations):
-        if accept_angle:
-            reflection_angle = \
-                np.degrees(
-                    (
-                        np.arctan2(
-                            np.dot(mesh.face_normals[index_tri][0], direction),
-                            np.dot(
-                                normal, 
-                                np.cross(mesh.face_normals[index_tri][0], direction)
-                            )
-                        ) 
-                        + 2 * np.pi
-                    ) % (2 * np.pi)
-                )
-            
-            if reflection_angle < accept_angle[0] or reflection_angle > accept_angle[1]:
-                raise ValueError
+        # figure out which intersection triangle to use - furthest out/down/aft if ap else fwd
+        index_location = None
         if butt is None:
-            return max(locations[:,1])
+            index_location = max(enumerate(locations[:,1]), key=lambda x: x[1])[0]
         elif wl is None:
-            return min(locations[:,2])
+            index_location = min(enumerate(locations[:,2]), key=lambda x: x[1])[0]
         elif station is None:
             if ap:
-                return max(locations[:,0])
+                index_location = max(enumerate(locations[:,0]), key=lambda x: x[1])[0]
             else:
-                return min(locations[:,0])
+                index_location = min(enumerate(locations[:,0]), key=lambda x: x[1])[0]
+        
+            
+        reflection_angle = \
+            np.degrees(
+                (
+                    np.arctan2(
+                        np.dot(mesh.face_normals[index_tri[index_location]], direction),
+                        np.dot(
+                            normal, 
+                            np.cross(mesh.face_normals[index_tri[index_location]], direction)
+                        )
+                    ) 
+                    + 2 * np.pi
+                ) % (2 * np.pi)
+            )
+        if accept_angle:
+            if reflection_angle < accept_angle[0] or reflection_angle > accept_angle[1]:
+                #~ print(f"{accept_angle[0]} < {reflection_angle} < {accept_angle[1]}")
+                raise ValueError
+        if butt is None:
+            return locations[index_location, 1], reflection_angle
+        elif wl is None:
+            return locations[index_location, 2], reflection_angle
+        elif station is None:
+
+            return locations[index_location, 0], reflection_angle
     else:
-        return None
+        return None, None
+
+def get_offset(mesh, station, butt, wl, accept_angle=None, ap=False, other_axis=None):
+    return get_offset_and_angle(mesh, station, butt, wl, accept_angle=accept_angle, ap=ap, other_axis=other_axis)[0]
 
 mesh = trimesh.load_mesh(args.mesh)
 mesh.fix_normals()
